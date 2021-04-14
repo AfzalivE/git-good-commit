@@ -14,6 +14,8 @@ COMMIT_MSG_LINES=
 HOOK_EDITOR=
 SKIP_DISPLAY_WARNINGS=0
 WARNINGS=
+SUBJECT_LINE_LIMIT=72
+WAIT_FOR_REPLY=0
 
 RED=
 YELLOW=
@@ -111,10 +113,6 @@ read_commit_message() {
     REPLY="${REPLY%%*( )}"
     shopt -u extglob
 
-    # ignore all lines after cut line
-    [[ $REPLY == "# ------------------------ >8 ------------------------" ]]
-    test $? -eq 1 || break
-
     # ignore comments
     [[ $REPLY =~ ^# ]]
     test $? -eq 0 || COMMIT_MSG_LINES+=("$REPLY")
@@ -123,7 +121,7 @@ read_commit_message() {
 }
 
 #
-# Validate the contents of the commit msg against the good commit guidelines.
+# Validate the contents of the commmit msg agains the good commit guidelines.
 #
 
 validate_commit_message() {
@@ -146,11 +144,11 @@ validate_commit_message() {
   test ${#COMMIT_MSG_LINES[@]} -lt 1 || test -z "${COMMIT_MSG_LINES[1]}"
   test $? -eq 0 || add_warning 2 "Separate subject from body with a blank line"
 
-  # 2. Limit the subject line to 50 characters
+  # 2. Limit the subject line to 72 characters
   # ------------------------------------------------------------------------------
 
-  test "${#COMMIT_SUBJECT}" -le 50
-  test $? -eq 0 || add_warning 1 "Limit the subject line to 50 characters (${#COMMIT_SUBJECT} chars)"
+  test "${#COMMIT_SUBJECT}" -le ${SUBJECT_LINE_LIMIT}
+  test $? -eq 0 || add_warning 1 "Limit the subject line to ${SUBJECT_LINE_LIMIT} characters (${#COMMIT_SUBJECT} chars)"
 
   # 3. Capitalize the subject line
   # ------------------------------------------------------------------------------
@@ -167,12 +165,10 @@ validate_commit_message() {
   # 5. Use the imperative mood in the subject line
   # ------------------------------------------------------------------------------
 
-  IMPERATIVE_MOOD_BLACKLIST=(
+  IMPERATIVE_MOOD_BLOCKLIST=(
     added          adds          adding
-    affixed        affixes       affixing
-    adjusted       adjusts       adjusting
-    amended        amends        amending
     avoided        avoids        avoiding
+    amended        amends        amending
     bumped         bumps         bumping
     changed        changes       changing
     checked        checks        checking
@@ -180,55 +176,29 @@ validate_commit_message() {
     copied         copies        copying
     corrected      corrects      correcting
     created        creates       creating
-    decreased      decreases     decreasing
     deleted        deletes       deleting
-    disabled       disables      disabling
-    dropped        drops         dropping
-    duplicated     duplicates    duplicating
-    enabled        enables       enabling
-    enhanced       enhances      enhancing
-    excluded       excludes      excluding
-    extracted      extracts      extracting
     fixed          fixes         fixing
-    handled        handles       handling
     implemented    implements    implementing
     improved       improves      improving
-    included       includes      including
-    increased      increases     increasing
-    installed      installs      installing
     introduced     introduces    introducing
-    leased         leases        leasing
-    managed        manages       managing
-    merged         merges        merging
     moved          moves         moving
-    normalised     normalises    normalising
-    normalized     normalizes    normalizing
-    passed         passes        passing
-    pointed        points        pointing
     pruned         prunes        pruning
-    ran            runs          running
     refactored     refactors     refactoring
-    released       releases      releasing
     removed        removes       removing
     renamed        renames       renaming
     replaced       replaces      replacing
     resolved       resolves      resolving
-    reverted       reverts       reverting
-                   sets          setting
     showed         shows         showing
-    swapped        swaps         swapping
     tested         tests         testing
-    tidied         tidies        tidying
     updated        updates       updating
-    upped          ups           upping
     used           uses          using
   )
 
   # enable case insensitive match
   shopt -s nocasematch
 
-  for BLACKLISTED_WORD in "${IMPERATIVE_MOOD_BLACKLIST[@]}"; do
-    [[ ${COMMIT_SUBJECT} =~ ^[[:blank:]]*$BLACKLISTED_WORD ]]
+  for BLOCKLISTED_WORD in "${IMPERATIVE_MOOD_BLOCKLIST[@]}"; do
+    [[ ${COMMIT_SUBJECT} =~ ^[[:blank:]]*$BLOCKLISTED_WORD ]]
     test $? -eq 0 && add_warning 1 "Use the imperative mood in the subject line, e.g 'fix' not 'fixes'" && break
   done
 
@@ -238,7 +208,7 @@ validate_commit_message() {
   # 6. Wrap the body at 72 characters
   # ------------------------------------------------------------------------------
 
-  URL_REGEX='^[[:blank:]]*(https?|ftp|file|wss?|git|ssh|data|irc|dat)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]'
+  URL_REGEX='^[[:blank:]]*(https?|ftp|file)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]'
 
   for i in "${!COMMIT_MSG_LINES[@]}"; do
     LINE_NUMBER=$((i+1))
@@ -256,7 +226,7 @@ validate_commit_message() {
 
   COMMIT_SUBJECT_WORDS=(${COMMIT_SUBJECT})
   test "${#COMMIT_SUBJECT_WORDS[@]}" -gt 1
-  test $? -eq 0 || add_warning 1 "Do no write single worded commits"
+  test $? -eq 0 || add_warning 1 "Do not write single worded commits"
 
   # 9. Do not start the subject line with whitespace
   # ------------------------------------------------------------------------------
@@ -279,8 +249,7 @@ else
   TTY=/dev/tty
 fi
 
-while true; do
-
+if [ ${WAIT_FOR_REPLY} -eq 0 ]; then
   read_commit_message
 
   validate_commit_message
@@ -290,23 +259,35 @@ while true; do
 
   display_warnings
 
-  # if non-interactive don't prompt and exit with an error
-  if [ ! -t 1 ] && [ -z ${FAKE_TTY+x} ]; then
-    exit 1
-  fi
+  exit 1;
 
-  # Ask the question (not using "read -p" as it uses stderr not stdout)
-  echo -en "${BLUE}Proceed with commit? [e/y/n/?] ${NC}"
+else
 
-  # Read the answer
-  read REPLY < "$TTY"
+  while true; do
 
-  # Check if the reply is valid
-  case "$REPLY" in
-    E*|e*) $HOOK_EDITOR "$COMMIT_MSG_FILE" < $TTY; continue ;;
-    Y*|y*) exit 0 ;;
-    N*|n*) exit 1 ;;
-    *)     SKIP_DISPLAY_WARNINGS=1; prompt_help; continue ;;
-  esac
+    read_commit_message
 
-done
+    validate_commit_message
+
+    # if there are no WARNINGS are empty then we're good to break out of here
+    test ${#WARNINGS[@]} -eq 0 && exit 0;
+
+    display_warnings
+
+    # Ask the question (not using "read -p" as it uses stderr not stdout)
+    echo -en "${BLUE}Proceed with commit? [e/y/n/?] ${NC}"
+
+    # Read the answer
+    read REPLY < "$TTY"
+
+    # Check if the reply is valid
+    case "$REPLY" in
+      E*|e*) $HOOK_EDITOR "$COMMIT_MSG_FILE" < $TTY; continue ;;
+      Y*|y*) exit 0 ;;
+      N*|n*) exit 1 ;;
+      *)     SKIP_DISPLAY_WARNINGS=1; prompt_help; continue ;;
+    esac
+
+  done
+
+fi
