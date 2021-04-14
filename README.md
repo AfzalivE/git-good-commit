@@ -4,6 +4,8 @@
 
 Git hook to help you write good commit messages.
 
+> Note: This fork allows setting custom subject line length and disabling the "wait for reply" behaviour.
+
 Validates commit messages conform to six of [the seven rules of a great git commit message](http://chris.beams.io/posts/git-commit/), plus a couple of extras:
 
 1. [Separate subject from body with a blank line](http://chris.beams.io/posts/git-commit/#separate)
@@ -27,7 +29,7 @@ Offers an interactive prompt if any of the rules are detected to be broken.
 At the root of the repository, run:
 
 ```sh
-curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+curl https://cdn.rawgit.com/AfzalivE/git-good-commit/v0.6.1/hook.sh > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
 ```
 
 ### Globally
@@ -37,7 +39,7 @@ To use the hook globally, you can use `git-init`'s template directory:
 ```sh
 mkdir -p ~/.git-template/hooks
 git config --global init.templatedir '~/.git-template'
-curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > ~/.git-template/hooks/commit-msg && chmod +x ~/.git-template/hooks/commit-msg
+curl https://cdn.rawgit.com/AfzalivE/git-good-commit/v0.6.1/hook.sh > ~/.git-template/hooks/commit-msg && chmod +x ~/.git-template/hooks/commit-msg
 ```
 
 The hook will now be present after any `git init` or `git clone`. You can [safely re-run `git init`](http://stackoverflow.com/a/5149861/885540) on any existing repositories to add the hook there.
@@ -80,7 +82,7 @@ Supported values are `always`, `auto`, `never` and `false`.
 None, other than Bash.
 
 ## Credits
-
+* https://github.com/tommarshall/git-good-commit
 * http://chris.beams.io/posts/git-commit
 * http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 * https://www.git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project#Commit-Guidelines
